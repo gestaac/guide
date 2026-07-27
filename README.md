@@ -27,10 +27,10 @@ breakpoint that reflows the whole page.
   - [6. The card row](#6-the-card-row)
   - [7. The mobile breakpoint](#7-the-mobile-breakpoint)
 - [Scaling the card row past three](#scaling-the-card-row-past-three)
-- [Full source](#full-source)
 - [CSS concepts used](#css-concepts-used)
 - [Gotchas worth remembering](#gotchas-worth-remembering)
 - [Ideas to extend this](#ideas-to-extend-this)
+- [Full source](#full-source)
 
 ---
 
@@ -536,10 +536,81 @@ one-dimensional.
 
 ---
 
+## CSS concepts used
+
+| Property | What it does here |
+| --- | --- |
+| `box-sizing: border-box` | Padding counts inside the width, so layout math is predictable |
+| `display: flex` | Turns a container into a row (or column) of arrangeable items |
+| `justify-content` | Spacing **along** the flex direction — horizontally in a row |
+| `align-items` | Alignment **across** the flex direction — vertically in a row |
+| `gap` | Space between flex items, without margins on each child |
+| `flex: 1` | "Share the leftover space equally" — the basis of both layouts here |
+| `flex-direction: column` | Turns a row into a stack; the core mobile fix |
+| `flex-wrap: wrap` | Lets items spill onto a new line instead of shrinking |
+| `position: sticky` | Scrolls normally, then pins at the `top` offset |
+| `object-fit: cover` | Crops an image to fill a box instead of squashing it |
+| `scroll-behavior: smooth` | Animates anchor jumps instead of teleporting |
+| `scroll-margin-top` | Offsets the scroll landing point so a fixed header doesn't cover it |
+| `clamp(min, val, max)` | Fluid sizing with hard limits — no media query needed |
+| `min-height: 100vh` | Makes a section at least one full screen tall |
+
+---
+
+## Gotchas worth remembering
+
+**Without the viewport meta tag, no media query works on a phone.** The browser
+reports a ~980px viewport regardless of the real screen, so `max-width: 768px`
+never matches. This is the first thing to check when a page "isn't responsive"
+despite correct CSS.
+
+**`height` vs `min-height` on a flex container.** A fixed height crushes content
+the moment items stack into a column. Use `min-height` for anything that changes
+shape across breakpoints.
+
+**`object-fit: cover` is not optional for images in fixed boxes.** Without it,
+every photo gets stretched. It's the single most reused line in card layouts.
+
+**A sticky header hides anchor targets.** `scroll-behavior: smooth` alone lands
+the heading *behind* the header. Pair it with `scroll-margin-top` set to the
+header's height.
+
+**Keep sections and containers as separate elements.** Merging them caps the
+section's background at the container width, which shows up as white gutters on
+wide screens as soon as you add a background.
+
+**`max-width` on flex children can silently break alignment.** The cards
+originally had `max-width: 420px`, which made the row narrower than the container
+and left them visibly inset from the nav. Removing it let `flex: 1` fill the
+width and the edges lined up.
+
+**Mobile stacking follows HTML source order.** Write the HTML in the order that
+reads well on a phone; use flexbox to rearrange it on desktop.
+
+---
+
+## Ideas to extend this
+
+- **Hamburger menu.** The stacked nav takes ~130px of a sticky header on a phone,
+  which is a lot of permanent screen space. That pressure — not aesthetics — is
+  the real reason hamburger menus exist. It can be done without JavaScript using
+  a hidden checkbox and the `:checked ~ sibling` selector.
+- **Add more cards.** See
+  [Scaling the card row past three](#scaling-the-card-row-past-three) — `flex: 1`
+  breaks down past three or four, and the fix is a two-line change.
+- **Fill in Menu 3–5.** They still point at `href=""`, which reloads the page.
+  Give them `#section3` and so on as you add sections.
+- **Set a real page title.** `<title>Document</title>` is the default placeholder
+  and shows up in the browser tab and search results.
+- **Host the images locally.** Hotlinked Unsplash URLs can change or go away.
+
+---
+
 ## Full source
 
-<details>
-<summary><strong>flexbox.html</strong></summary>
+The complete, final code for both files. Copy these two and the page works as-is.
+
+### `flexbox.html`
 
 ```html
 <!DOCTYPE html>
@@ -639,10 +710,7 @@ one-dimensional.
 </html>
 ```
 
-</details>
-
-<details>
-<summary><strong>css/flex.css</strong></summary>
+### `css/flex.css`
 
 ```css
 * {
@@ -838,80 +906,7 @@ section {
 }
 ```
 
-</details>
-
 ---
-
-## CSS concepts used
-
-| Property | What it does here |
-| --- | --- |
-| `box-sizing: border-box` | Padding counts inside the width, so layout math is predictable |
-| `display: flex` | Turns a container into a row (or column) of arrangeable items |
-| `justify-content` | Spacing **along** the flex direction — horizontally in a row |
-| `align-items` | Alignment **across** the flex direction — vertically in a row |
-| `gap` | Space between flex items, without margins on each child |
-| `flex: 1` | "Share the leftover space equally" — the basis of both layouts here |
-| `flex-direction: column` | Turns a row into a stack; the core mobile fix |
-| `flex-wrap: wrap` | Lets items spill onto a new line instead of shrinking |
-| `position: sticky` | Scrolls normally, then pins at the `top` offset |
-| `object-fit: cover` | Crops an image to fill a box instead of squashing it |
-| `scroll-behavior: smooth` | Animates anchor jumps instead of teleporting |
-| `scroll-margin-top` | Offsets the scroll landing point so a fixed header doesn't cover it |
-| `clamp(min, val, max)` | Fluid sizing with hard limits — no media query needed |
-| `min-height: 100vh` | Makes a section at least one full screen tall |
-
----
-
-## Gotchas worth remembering
-
-**Without the viewport meta tag, no media query works on a phone.** The browser
-reports a ~980px viewport regardless of the real screen, so `max-width: 768px`
-never matches. This is the first thing to check when a page "isn't responsive"
-despite correct CSS.
-
-**`height` vs `min-height` on a flex container.** A fixed height crushes content
-the moment items stack into a column. Use `min-height` for anything that changes
-shape across breakpoints.
-
-**`object-fit: cover` is not optional for images in fixed boxes.** Without it,
-every photo gets stretched. It's the single most reused line in card layouts.
-
-**A sticky header hides anchor targets.** `scroll-behavior: smooth` alone lands
-the heading *behind* the header. Pair it with `scroll-margin-top` set to the
-header's height.
-
-**Keep sections and containers as separate elements.** Merging them caps the
-section's background at the container width, which shows up as white gutters on
-wide screens as soon as you add a background.
-
-**`max-width` on flex children can silently break alignment.** The cards
-originally had `max-width: 420px`, which made the row narrower than the container
-and left them visibly inset from the nav. Removing it let `flex: 1` fill the
-width and the edges lined up.
-
-**Mobile stacking follows HTML source order.** Write the HTML in the order that
-reads well on a phone; use flexbox to rearrange it on desktop.
-
----
-
-## Ideas to extend this
-
-- **Hamburger menu.** The stacked nav takes ~130px of a sticky header on a phone,
-  which is a lot of permanent screen space. That pressure — not aesthetics — is
-  the real reason hamburger menus exist. It can be done without JavaScript using
-  a hidden checkbox and the `:checked ~ sibling` selector.
-- **Add more cards.** See
-  [Scaling the card row past three](#scaling-the-card-row-past-three) — `flex: 1`
-  breaks down past three or four, and the fix is a two-line change.
-- **Fill in Menu 3–5.** They still point at `href=""`, which reloads the page.
-  Give them `#section3` and so on as you add sections.
-- **Set a real page title.** `<title>Document</title>` is the default placeholder
-  and shows up in the browser tab and search results.
-- **Host the images locally.** Hotlinked Unsplash URLs can change or go away.
-
----
-
 ## License
 
 Free to use for learning. Photographs are from
