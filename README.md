@@ -13,6 +13,11 @@ breakpoint that reflows the whole page.
 - [What it includes](#what-it-includes)
 - [File structure](#file-structure)
 - [Running it](#running-it)
+- [The HTML structure](#the-html-structure)
+  - [The document head](#the-document-head)
+  - [The page skeleton](#the-page-skeleton)
+  - [Which element to use, and why](#which-element-to-use-and-why)
+  - [Patterns in the markup](#patterns-in-the-markup)
 - [How it was built, step by step](#how-it-was-built-step-by-step)
   - [1. Reset and base styles](#1-reset-and-base-styles)
   - [2. The container — one source of alignment](#2-the-container--one-source-of-alignment)
@@ -21,6 +26,7 @@ breakpoint that reflows the whole page.
   - [5. The two-column hero](#5-the-two-column-hero)
   - [6. The card row](#6-the-card-row)
   - [7. The mobile breakpoint](#7-the-mobile-breakpoint)
+- [Scaling the card row past three](#scaling-the-card-row-past-three)
 - [Full source](#full-source)
 - [CSS concepts used](#css-concepts-used)
 - [Gotchas worth remembering](#gotchas-worth-remembering)
@@ -69,6 +75,131 @@ No build step and no dependencies — open `flexbox.html` in a browser.
 
 Images are hotlinked from Unsplash's CDN, so an internet connection is needed.
 For production, download them into an `images/` folder and reference locally.
+
+---
+
+## The HTML structure
+
+### The document head
+
+```html
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="/css/flex.css">
+```
+
+**The viewport meta tag is the single most important line for a responsive
+page.** Without it, mobile browsers assume they're rendering a desktop site: they
+lay the page out at roughly 980px wide and then zoom the whole thing out to fit.
+The text becomes tiny, and — critically — **`max-width` media queries never
+trigger**, because the browser still reports a ~980px viewport. Every mobile rule
+in `flex.css` depends on this tag being present.
+
+`width=device-width` says "use the device's actual width," and
+`initial-scale=1.0` says "don't zoom."
+
+`charset="UTF-8"` tells the browser how to decode the bytes in the file. Without
+it, accented characters, curly quotes, and symbols can render as garbage.
+
+### The page skeleton
+
+```
+body
+├── header                      sticky, full width
+│   └── div.container.bar       1400px well, flex row
+│       ├── a.logo
+│       └── nav.nav             the five menu links
+│
+└── main
+    ├── section.hero            full width, gradient background
+    │   └── div.container.hero-inner    flex row of two columns
+    │       ├── div.hero-text           heading, paragraph, button
+    │       └── div.hero-image          the photo
+    │
+    ├── section#section1        anchor target for "Menu 1"
+    │   └── div.container
+    │       ├── h2.section-title
+    │       └── div.cards       flex row of three cards
+    │           ├── article.card
+    │           ├── article.card
+    │           └── article.card
+    │
+    └── section#section2        anchor target for "Menu 2"
+        └── div.container
+```
+
+The repeating shape is worth noticing: **a full-width outer element, wrapping a
+`.container` that holds the content.** The outer element owns the background; the
+inner one owns the alignment. Every band of the page follows it.
+
+### Which element to use, and why
+
+| Element | Why it's used here |
+| --- | --- |
+| `<header>` | The page's top banner. Not the same as `<head>` — this one is visible. |
+| `<nav>` | A block of navigation links. Screen readers can jump straight to it. |
+| `<main>` | The primary content, once per page. Lets assistive tech skip the header. |
+| `<section>` | A distinct, thematic band of the page — usually with a heading. |
+| `<article>` | A self-contained unit that would still make sense on its own — each card. |
+| `<div>` | No meaning at all. Used purely as a styling hook (`.container`, `.card-body`). |
+
+The rule of thumb: **reach for `<div>` only when nothing more descriptive fits.**
+The cards are `<article>` because a card with its own image, heading, and text is
+self-contained. `.card-body` is a `<div>` because it exists only to hold padding.
+
+This costs nothing and buys real things — screen-reader navigation, better search
+engine understanding, and markup that's easier to read six months later.
+
+### Patterns in the markup
+
+**Two classes on one element, doing different jobs:**
+
+```html
+<div class="container bar">
+<div class="container hero-inner">
+```
+
+`.container` is the shared layout well — max-width, centering, padding. `.bar` and
+`.hero-inner` add behaviour specific to that one spot. Splitting them this way
+means the alignment rules live in exactly one place, and each component only
+describes what makes it different.
+
+**IDs are link targets, not styling hooks:**
+
+```html
+<a href="#section1">Menu 1</a>
+...
+<section id="section1">
+```
+
+The `id` values here exist so the anchor links have something to point at. Styling
+is done entirely through classes — that keeps specificity low and predictable,
+since an `id` selector is much harder to override than a class.
+
+**Every image has `alt` text:**
+
+```html
+<img src="..." alt="A lake reflecting mountains at dusk">
+```
+
+`alt` describes the image for screen readers, and displays if the image fails to
+load — which matters here, since these are hotlinked from an external CDN.
+Describe what's in the photo; don't write "image of." An empty `alt=""` is correct
+only for purely decorative images that add no information.
+
+**`&amp;` is an HTML entity:**
+
+```html
+<a href="" class="logo">Chester<span>&amp; Co.</span></a>
+```
+
+A bare `&` starts an entity in HTML, so writing the character literally is
+ambiguous. `&amp;` renders as `&`. The `<span>` wraps "& Co." so it can be styled
+differently from "Chester" later — a hook placed in advance.
+
+**`href=""` is a placeholder, not a no-op.** Menu 3, 4, and 5 still have empty
+hrefs, which reload the current page when clicked. Point them at real targets
+(`#section3`) as you add sections.
 
 ---
 
@@ -289,6 +420,119 @@ cramped desktop layout.
 **Stacking order follows HTML order.** When a flex row becomes a column, items
 stack in source order. So write your HTML in the order that makes sense on a
 phone, and let the desktop layout rearrange it.
+
+---
+
+## Scaling the card row past three
+
+The current setup works because there are exactly three cards. Add a fourth,
+fifth, or sixth and it starts to fall apart — here's why, and what to change.
+
+### Why `flex: 1` stops working
+
+`flex: 1` is shorthand for three separate values:
+
+```css
+flex: 1;          /* is the same as... */
+flex: 1 1 0;
+/*    │ │ └── flex-basis:  the starting width, before any space is shared */
+/*    │ └──── flex-shrink: how eagerly it gives up space when short */
+/*    └────── flex-grow:   how eagerly it takes leftover space */
+```
+
+The part that causes trouble is **`flex-basis: 0`**. It means "ignore how wide the
+content wants to be — just divide the row evenly." Three cards get a third each,
+which is comfortable. But six cards get a sixth each, which on a 1400px container
+is about 210px per card. The images squeeze, the paragraphs turn into narrow
+columns of two-word lines, and nothing ever moves to a second row.
+
+They never wrap because `flex-wrap` defaults to `nowrap`. Flex items shrink
+indefinitely rather than break onto a new line — you have to opt in.
+
+### The fix: give each card a preferred width, and allow wrapping
+
+```css
+.cards {
+    display: flex;
+    flex-wrap: wrap;      /* allow a second row */
+    gap: 24px;
+}
+
+.card {
+    flex: 1 1 300px;      /* grow, shrink, but aim for 300px */
+}
+```
+
+Now each card asks to be **300px wide**. The browser fits as many as it can per
+row, pushes the rest to the next line, and `flex-grow: 1` shares the leftover
+space so each row still ends flush with the container edge.
+
+The result adapts on its own:
+
+| Container width | Cards per row |
+| --- | --- |
+| 1400px | 4 |
+| 1000px | 3 |
+| 700px | 2 |
+| 400px | 1 |
+
+**The media query for cards becomes unnecessary.** Because a card wants 300px and
+a phone offers less than that after padding, it naturally lands one per row. You
+can delete this rule entirely:
+
+```css
+/* no longer needed with flex-wrap + flex-basis */
+@media screen and (max-width: 768px) {
+    .cards {
+        flex-direction: column;
+    }
+}
+```
+
+That's the appealing part of this approach — the layout responds to the *space
+available*, not to a breakpoint you picked by hand.
+
+### The catch: the lonely last card
+
+With `flex-grow: 1`, any leftover card on the final row **stretches to fill the
+whole width**. Seven cards at four-per-row leaves three on row two, each 33% wide
+instead of 25% — visibly mismatched against the row above.
+
+Two ways to handle it:
+
+```css
+.card { flex: 0 1 300px; }    /* don't grow — cards stay 300px */
+```
+
+Turning off `flex-grow` keeps every card the same size, but leaves a ragged gap at
+the end of each row. Pair it with `justify-content: center` on `.cards` so the gap
+is split evenly on both sides rather than dumped on the right.
+
+Which you prefer is a judgement call: **stretch** keeps clean edges but uneven
+card sizes; **no stretch** keeps uniform cards but a ragged right edge.
+
+### When to switch to CSS Grid
+
+If you want equal-sized cards *and* flush edges, that's the point where flexbox
+stops being the right tool. One line of Grid does it:
+
+```css
+.cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+}
+```
+
+`auto-fit` fits as many columns as will hold at least 300px, and `1fr` splits the
+remaining space equally among them — so every card in every row is the same width,
+including the last one. No media query, no lonely-card problem.
+
+The honest summary: **flexbox is for arranging things in one direction; Grid is
+for laying things out in two.** A row of cards that wraps into multiple rows is
+really a grid, so Grid handles it with less fighting. Flexbox is still the right
+choice for the navbar and the two-column hero, which are genuinely
+one-dimensional.
 
 ---
 
@@ -621,6 +865,11 @@ section {
 
 ## Gotchas worth remembering
 
+**Without the viewport meta tag, no media query works on a phone.** The browser
+reports a ~980px viewport regardless of the real screen, so `max-width: 768px`
+never matches. This is the first thing to check when a page "isn't responsive"
+despite correct CSS.
+
 **`height` vs `min-height` on a flex container.** A fixed height crushes content
 the moment items stack into a column. Use `min-height` for anything that changes
 shape across breakpoints.
@@ -652,9 +901,9 @@ reads well on a phone; use flexbox to rearrange it on desktop.
   which is a lot of permanent screen space. That pressure — not aesthetics — is
   the real reason hamburger menus exist. It can be done without JavaScript using
   a hidden checkbox and the `:checked ~ sibling` selector.
-- **Wrap the cards instead of stacking them.** `flex: 1 1 300px` with
-  `flex-wrap: wrap` on `.cards` turns them into a self-arranging grid that needs
-  no media query and handles any number of cards.
+- **Add more cards.** See
+  [Scaling the card row past three](#scaling-the-card-row-past-three) — `flex: 1`
+  breaks down past three or four, and the fix is a two-line change.
 - **Fill in Menu 3–5.** They still point at `href=""`, which reloads the page.
   Give them `#section3` and so on as you add sections.
 - **Set a real page title.** `<title>Document</title>` is the default placeholder
